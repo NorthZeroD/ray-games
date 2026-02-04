@@ -4,4 +4,4 @@ Some games made with raylib by me.
 
 Just for fun.
 
-~_~
+:D
