@@ -3,15 +3,23 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <stdio.h>
-#include <limits.h>
-
-#define WINDOW_WIDTH 600
-#define WINDOW_HEIGHT 800
-#define FPS 60
+#include <string.h>
 
 #define BLOCK_LENGTH 50
-#define PLAYABLE_WIDTH (WINDOW_WIDTH / BLOCK_LENGTH)
-#define PLAYABLE_HEIGHT (WINDOW_HEIGHT / BLOCK_LENGTH)
+#define PLAYABLE_WIDTH 12
+#define PLAYABLE_HEIGHT 16
+
+#define FONT_SIZE 40
+#define FONT_COLOR RAYWHITE
+
+#define CENTRE_X (TABLE_WIDTH / 2 - SHAPE_FRAME_LENGTH / 2)
+#define START_X CENTRE_X
+#define START_Y WALL_THICKNESS
+#define DEFAULT_FALLTIME 0.6f
+
+#define WINDOW_WIDTH (BLOCK_LENGTH * PLAYABLE_WIDTH)
+#define WINDOW_HEIGHT (BLOCK_LENGTH * PLAYABLE_HEIGHT)
+#define FPS 120
 
 #define WALL_THICKNESS 2
 #define TABLE_WIDTH (PLAYABLE_WIDTH + WALL_THICKNESS * 2)
@@ -25,14 +33,10 @@
 #define UINT16_HIGH_1_BIT (0x1U << 15)
 #define UINT16_HIGH_4_BIT (0xFU << 12)
 
-#define CENTRE_X (TABLE_WIDTH / 2 - SHAPE_FRAME_LENGTH / 2)
-#define START_X CENTRE_X
-#define START_Y WALL_THICKNESS
-
-#define ROTATE_ID(id, r) (((id) & ~3) | (((id) + (r) + 4) & 3))
-
 #define EMPTY_LINE_MASK ((UINT64_MAX >> (PLAYABLE_WIDTH + WALL_THICKNESS)) | (UINT64_MAX << (64 - WALL_THICKNESS)))
 #define FULL_LINE_MASK (~EMPTY_LINE_MASK)
+
+#define ROTATE_SHAPE_ID(id, r) (((id) & ~3) | (((id) + (r) + 4) & 3))
 
 // NULL, I, O, T, S, Z, J, L
 const uint16_t shapes[32] = {
@@ -46,15 +50,11 @@ const uint16_t shapes[32] = {
     0b1110100000000000, 0b0110001000100000, 0b0000001011100000, 0b1000100011000000,
 };
 
-void InitTable(uint64_t table[]) {
-    for (int y = 0; y < WALL_THICKNESS; ++y) {
-        table[y] = UINT64_MAX;
-        table[TABLE_HEIGHT - 1 - y] = UINT64_MAX;
-    }
-    for (int y = WALL_THICKNESS; y < TABLE_HEIGHT - WALL_THICKNESS; ++y) {
-        table[y] = (UINT64_MAX >> (PLAYABLE_WIDTH + WALL_THICKNESS)) | (UINT64_MAX << (64 - WALL_THICKNESS));
-    }
-}
+typedef struct {
+    uint64_t* table;
+    int shapeId, shapeX, shapeY, scoreCurrent, scoreHighest;
+    float fallTime;
+} Game;
 
 void PrintTable(const uint64_t table[]) {
     for (int y = 0; y < TABLE_HEIGHT; ++y) {
@@ -69,6 +69,18 @@ void PrintTable(const uint64_t table[]) {
     putchar('\n');
 }
 
+void InitTable(uint64_t table[]) {
+    memset(table, 0, sizeof(uint64_t) * TABLE_HEIGHT);
+    for (int y = 0; y < WALL_THICKNESS; ++y) {
+        table[y] = UINT64_MAX;
+        table[TABLE_HEIGHT - 1 - y] = UINT64_MAX;
+    }
+    for (int y = WALL_THICKNESS; y < TABLE_HEIGHT - WALL_THICKNESS; ++y) {
+        table[y] = (UINT64_MAX >> (PLAYABLE_WIDTH + WALL_THICKNESS)) | (UINT64_MAX << (64 - WALL_THICKNESS));
+    }
+    PrintTable(table);
+}
+
 void DrawTable(const uint64_t table[]) {
     for (int y = 0; y < PLAYABLE_HEIGHT; ++y) {
         for (int x = 0; x < PLAYABLE_WIDTH; ++x) {
@@ -79,132 +91,154 @@ void DrawTable(const uint64_t table[]) {
     }
 }
 
-typedef struct {
-    uint64_t* table;
-    int shapeId, curX, curY, score;
-    float fallTime;
-} Scene;
-
-void DrawShape(const Scene* scene) {
-    uint16_t shape = shapes[scene->shapeId];
-    int curX = scene->curX;
-    int curY = scene->curY;
+void DrawShape(const Game* game) {
+    uint16_t shape = shapes[game->shapeId];
+    int shapeX = game->shapeX;
+    int shapeY = game->shapeY;
     for (int row = 0; row < SHAPE_FRAME_LENGTH; ++row) {
         for (int col = 0; col < SHAPE_FRAME_LENGTH; ++col) {
             uint16_t lineOfShapeFrame = (shape << (row * SHAPE_FRAME_LENGTH)) & UINT16_HIGH_4_BIT;
             uint16_t bit = lineOfShapeFrame & (UINT16_HIGH_1_BIT >> col);
 //            printf("%d\n", bit);
             Color color = bit ? WHITE : BLANK;
-            DrawRectangle((curX + col - WALL_THICKNESS) * BLOCK_LENGTH, (curY + row - WALL_THICKNESS) * BLOCK_LENGTH, BLOCK_LENGTH, BLOCK_LENGTH, color);
+            DrawRectangle((shapeX + col - WALL_THICKNESS) * BLOCK_LENGTH, (shapeY + row - WALL_THICKNESS) * BLOCK_LENGTH, BLOCK_LENGTH, BLOCK_LENGTH, color);
         }
     }
 //    printf("-----------------------\n");
 }
 
-bool CanMove(const Scene* scene, int offsetX, int offsetY, int rotate) {
-    int shapeId = scene->shapeId;
-    if (rotate) shapeId = ROTATE_ID(shapeId, rotate);
+bool IsOverlap(const uint64_t* table, int shapeId, int shapeX, int shapeY) {
     uint64_t shape = (uint64_t)shapes[shapeId] << 48;
-    uint64_t* table = scene->table;
-    int curX = scene->curX;
-    int curY = scene->curY;
-    if ((curX + offsetX) < 0 || (curX + offsetX) > TABLE_WIDTH) return false;
     for (int row = 0; row < SHAPE_FRAME_LENGTH; ++row) {
-        uint64_t lineOfShapeFrame = ((shape << (row * SHAPE_FRAME_LENGTH)) & UINT64_HIGH_4_BIT) >> (curX + offsetX);
-        uint64_t lineOfTable = table[curY + row + offsetY];
+        uint64_t lineOfShapeFrame = ((shape << (row * SHAPE_FRAME_LENGTH)) & UINT64_HIGH_4_BIT) >> shapeX;
+        uint64_t lineOfTable = table[shapeY + row];
         uint64_t isOverlap = lineOfShapeFrame & lineOfTable;
-        if (isOverlap) return false;
+        if (isOverlap) return true;
     }
+    return false;
+}
+
+bool CanMove(const Game* game, int offsetX, int offsetY, int offsetRotate) {
+    uint64_t* table = game->table;
+    int shapeId = offsetRotate ? ROTATE_SHAPE_ID(game->shapeId, offsetRotate) : game->shapeId;
+    int shapeX = game->shapeX;
+    int shapeY = game->shapeY;
+    int targetX = shapeX + offsetX;
+    int targetY = shapeY + offsetY;
+    if (targetX < 0 || targetX > TABLE_WIDTH) return false;
+    if (targetY < 0 || targetY > TABLE_HEIGHT) return false;
+    if (IsOverlap(table, shapeId, targetX, targetY)) return false;
     return true;
 }
 
-bool Update(Scene* scene, int offsetX, int offsetY, int rotate) {
-    if (CanMove(scene, offsetX, offsetY, rotate)) {
-        scene->curX += offsetX;
-        scene->curY += offsetY;
-        scene->shapeId = ROTATE_ID(scene->shapeId, rotate);
+bool Update(Game* game, int offsetX, int offsetY, int offsetRotate) {
+    if (CanMove(game, offsetX, offsetY, offsetRotate)) {
+        game->shapeX += offsetX;
+        game->shapeY += offsetY;
+        game->shapeId = ROTATE_SHAPE_ID(game->shapeId, offsetRotate);
         return true;
     }
     return false;
 }
 
-void HandleInput(Scene* scene) {
-    if (IsKeyPressed(KEY_H)) Update(scene, -1, 0, 0);
-    if (IsKeyPressed(KEY_L)) Update(scene, 1, 0, 0);
-    if (IsKeyPressed(KEY_J)) Update(scene, 0, 0, -1);
-    if (IsKeyPressed(KEY_K)) Update(scene, 0, 0, 1);
-    if (IsKeyDown(KEY_SPACE)) scene->fallTime = 0.1f;
-    else scene->fallTime = 0.6f;
+void HandleInput(Game* game) {
+    int key = GetKeyPressed();
+    if (key == KEY_H || key == KEY_A || key == KEY_LEFT) Update(game, -1, 0, 0);
+    if (key == KEY_L || key == KEY_D || key == KEY_RIGHT) Update(game, 1, 0, 0);
+    if (key == KEY_J || key == KEY_S || key == KEY_DOWN) Update(game, 0, 0, -1);
+    if (key == KEY_K || key == KEY_W || key == KEY_UP) Update(game, 0, 0, 1);
+    if (IsKeyDown(KEY_SPACE)) game->fallTime = 0.08f;
+    else game->fallTime = DEFAULT_FALLTIME;
 }
 
-void CommitShape(Scene* scene) {
-    uint64_t shape = (uint64_t)shapes[scene->shapeId] << 48;
-    uint64_t* table = scene->table;
-    int curX = scene->curX;
-    int curY = scene->curY;
+void CommitShape(Game* game) {
+    uint64_t shape = (uint64_t)shapes[game->shapeId] << 48;
+    uint64_t* table = game->table;
+    int shapeX = game->shapeX;
+    int shapeY = game->shapeY;
     for (int row = 0; row < SHAPE_FRAME_LENGTH; ++row) {
-        uint64_t lineOfShapeFrame = ((shape << (row * SHAPE_FRAME_LENGTH)) & UINT64_HIGH_4_BIT) >> curX;
-        uint64_t* lineOfTable = &table[curY + row];
+        uint64_t lineOfShapeFrame = ((shape << (row * SHAPE_FRAME_LENGTH)) & UINT64_HIGH_4_BIT) >> shapeX;
+        uint64_t* lineOfTable = &table[shapeY + row];
         *lineOfTable |= lineOfShapeFrame;
     }
 }
 
-void NewStart(Scene* scene) {
-    scene->shapeId = GetRandomValue(0, 1000) % 28 + 4;
-    scene->curX = START_X;
-    scene->curY = START_Y;
+void GameOver(Game* game);
+
+void NewShape(Game* game) {
+    game->shapeId = GetRandomValue(0, 1000) % 28 + 4;
+    game->shapeX = START_X;
+    game->shapeY = START_Y;
+    if (IsOverlap(game->table, game->shapeId, game->shapeX, game->shapeY)) GameOver(game);
 }
 
-// TODO: Improve the CheckLines algorithm
-void CheckLines(Scene* scene) {
-    uint64_t* table = scene->table;
+void GameOver(Game* game) {
+    int scoreCurrent = game->scoreCurrent;
+    int scoreHighest = game->scoreHighest;
+    game->scoreHighest = scoreCurrent > scoreHighest ? scoreCurrent : scoreHighest;
+    game->scoreCurrent = 0;
+    InitTable(game->table);
+    NewShape(game);
+}
+
+void CheckLines(Game* game) {
+    uint64_t* table = game->table;
     for (int y = TABLE_HEIGHT - WALL_THICKNESS - 1; y >= WALL_THICKNESS; --y) {
         if ((table[y] & FULL_LINE_MASK) == FULL_LINE_MASK) {
-            scene->score += 10;
+            game->scoreCurrent += 10;
             for (int t = y; t >= WALL_THICKNESS + 1; --t) {
                 table[t] = table[t - 1];
             }
-            y = TABLE_HEIGHT - WALL_THICKNESS - 1;
+            y = TABLE_HEIGHT - WALL_THICKNESS;
         }
     }
 }
 
-void NaturalFall(Scene* scene) {
-    if (!Update(scene, 0, 1, 0)) {
-        CommitShape(scene);
-        CheckLines(scene);
-        NewStart(scene);
+void NaturalFall(Game* game) {
+    if (!Update(game, 0, 1, 0)) {
+        CommitShape(game);
+        CheckLines(game);
+        NewShape(game);
     }
+}
+
+void InitGame(Game* game) {
+    game->scoreCurrent = 0;
+    game->scoreHighest = 0;
+    game->shapeX = START_X;
+    game->shapeY = START_Y;
+    game->fallTime = DEFAULT_FALLTIME;
+    game->shapeId = GetRandomValue(0, 1000) % 28 + 4;
+    InitTable(game->table);
 }
 
 int main(void)
 {
     InitWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "Tetris");
-    SetTargetFPS(120);
+    SetTargetFPS(FPS);
     SetExitKey(KEY_Q);
 
     float timer = 0.f;
-    uint64_t table[TABLE_HEIGHT] = {0};
-    InitTable(table);
-    PrintTable(table);
-
-    Scene scene = { table, GetRandomValue(0, 1000) % 28 + 4, START_X, START_Y, 0, 0.6f };
+    uint64_t table[TABLE_HEIGHT];
+    Game game = { .table = table };
+    InitGame(&game);
 
     while (!WindowShouldClose()) {
-        HandleInput(&scene);
+        HandleInput(&game);
 
         BeginDrawing();
         ClearBackground(BLACK);
 
         timer += GetFrameTime(); 
-        if (timer >= scene.fallTime) {
-            NaturalFall(&scene);
-            timer -= scene.fallTime;
+        if (timer >= game.fallTime) {
+            NaturalFall(&game);
+            timer -= game.fallTime;
         }
 
         DrawTable(table);
-        DrawShape(&scene);
-        DrawText(TextFormat("%d", scene.score), WINDOW_WIDTH - 80, 40, 40, WHITE);
+        DrawShape(&game);
+        DrawText(TextFormat("%06d", game.scoreHighest), FONT_SIZE / 2, FONT_SIZE / 2, FONT_SIZE, FONT_COLOR);
+        DrawText(TextFormat("%06d", game.scoreCurrent), FONT_SIZE / 2, FONT_SIZE / 2 + FONT_SIZE, FONT_SIZE, FONT_COLOR);
 
         // DrawFPS(5, 5);
         EndDrawing();
