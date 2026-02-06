@@ -1,13 +1,13 @@
 #include "raylib.h"
-#include <stddef.h>
 #include <stdint.h>
-#include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h>
 
 #define BLOCK_LENGTH 50
-#define PLAYABLE_WIDTH 12
-#define PLAYABLE_HEIGHT 16
+
+int PLAYABLE_WIDTH = 12;
+int PLAYABLE_HEIGHT = 16;
 
 #define FONT_SIZE 40
 #define FONT_COLOR RAYWHITE
@@ -212,8 +212,22 @@ void InitGame(Game* game) {
     InitTable(game->table);
 }
 
-int main(void)
+int main(int argc, char* argv[])
 {
+    if (argc == 3) {
+        int w = atoi(argv[1]);
+        int h = atoi(argv[2]);
+        if (w < 4 || w > 60 || h < 4 || h > 60) {
+            printf("Invalid arguments.\nUseage: %s [width:int[4,60]] [height:int[4,60]]\n", argv[0]);
+            return 1;
+        }
+        PLAYABLE_WIDTH = w;
+        PLAYABLE_HEIGHT = h;
+    } else if (argc != 1) {
+        printf("Invalid arguments.\nUseage: %s [width:int[4,60]] [height:int[4,60]]\n", argv[0]);
+        return 1;
+    }
+
     InitWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "Tetris");
     SetTargetFPS(FPS);
     SetExitKey(KEY_Q);
