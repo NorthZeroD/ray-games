@@ -214,7 +214,7 @@ void HandleInput(Game* game) {
         if (key == KEY_K || key == KEY_W || key == KEY_UP) Update(game, 0, 0, 1);
     }
     if (key == KEY_R) GameOver(game);
-    if (key == KEY_ESCAPE) game->pause = !game->pause;
+    if (key == KEY_P || key == KEY_ESCAPE) game->pause = !game->pause;
 
     if (IsKeyDown(KEY_SPACE)) game->fallTime = 0.08f;
     else game->fallTime = DEFAULT_FALLTIME;
