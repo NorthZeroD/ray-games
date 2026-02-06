@@ -10,7 +10,8 @@ int PLAYABLE_WIDTH = 12;
 int PLAYABLE_HEIGHT = 16;
 
 #define FONT_SIZE 40
-#define FONT_COLOR RAYWHITE
+#define SCORE_COLOR RAYWHITE
+#define PAUSE_COLOR ORANGE
 
 #define CENTRE_X (TABLE_WIDTH / 2 - SHAPE_FRAME_LENGTH / 2)
 #define START_X CENTRE_X
@@ -54,6 +55,7 @@ typedef struct {
     uint64_t* table;
     int shapeId, shapeX, shapeY, scoreCurrent, scoreHighest;
     float fallTime;
+    bool pause;
 } Game;
 
 void PrintTable(const uint64_t table[]) {
@@ -141,16 +143,6 @@ bool Update(Game* game, int offsetX, int offsetY, int offsetRotate) {
     return false;
 }
 
-void HandleInput(Game* game) {
-    int key = GetKeyPressed();
-    if (key == KEY_H || key == KEY_A || key == KEY_LEFT) Update(game, -1, 0, 0);
-    if (key == KEY_L || key == KEY_D || key == KEY_RIGHT) Update(game, 1, 0, 0);
-    if (key == KEY_J || key == KEY_S || key == KEY_DOWN) Update(game, 0, 0, -1);
-    if (key == KEY_K || key == KEY_W || key == KEY_UP) Update(game, 0, 0, 1);
-    if (IsKeyDown(KEY_SPACE)) game->fallTime = 0.08f;
-    else game->fallTime = DEFAULT_FALLTIME;
-}
-
 void CommitShape(Game* game) {
     uint64_t shape = (uint64_t)shapes[game->shapeId] << 48;
     uint64_t* table = game->table;
@@ -195,7 +187,7 @@ void CheckLines(Game* game) {
 }
 
 void NaturalFall(Game* game) {
-    if (!Update(game, 0, 1, 0)) {
+    if (!game->pause && !Update(game, 0, 1, 0)) {
         CommitShape(game);
         CheckLines(game);
         NewShape(game);
@@ -209,7 +201,23 @@ void InitGame(Game* game) {
     game->shapeY = START_Y;
     game->fallTime = DEFAULT_FALLTIME;
     game->shapeId = GetRandomValue(0, 1000) % 28 + 4;
+    game->pause = false;
     InitTable(game->table);
+}
+
+void HandleInput(Game* game) {
+    int key = GetKeyPressed();
+    if (!game->pause) {
+        if (key == KEY_H || key == KEY_A || key == KEY_LEFT) Update(game, -1, 0, 0);
+        if (key == KEY_L || key == KEY_D || key == KEY_RIGHT) Update(game, 1, 0, 0);
+        if (key == KEY_J || key == KEY_S || key == KEY_DOWN) Update(game, 0, 0, -1);
+        if (key == KEY_K || key == KEY_W || key == KEY_UP) Update(game, 0, 0, 1);
+    }
+    if (key == KEY_R) GameOver(game);
+    if (key == KEY_ESCAPE) game->pause = !game->pause;
+
+    if (IsKeyDown(KEY_SPACE)) game->fallTime = 0.08f;
+    else game->fallTime = DEFAULT_FALLTIME;
 }
 
 int main(int argc, char* argv[])
@@ -251,10 +259,12 @@ int main(int argc, char* argv[])
 
         DrawTable(table);
         DrawShape(&game);
-        DrawText(TextFormat("%06d", game.scoreHighest), FONT_SIZE / 2, FONT_SIZE / 2, FONT_SIZE, FONT_COLOR);
-        DrawText(TextFormat("%06d", game.scoreCurrent), FONT_SIZE / 2, FONT_SIZE / 2 + FONT_SIZE, FONT_SIZE, FONT_COLOR);
+        DrawText(TextFormat("%06d", game.scoreHighest), FONT_SIZE / 2, FONT_SIZE / 2, FONT_SIZE, SCORE_COLOR);
+        DrawText(TextFormat("%06d", game.scoreCurrent), FONT_SIZE / 2, FONT_SIZE / 2 + FONT_SIZE, FONT_SIZE, SCORE_COLOR);
+        if (game.pause) {
+            DrawText("PAUSE", WINDOW_WIDTH - FONT_SIZE * 4, FONT_SIZE / 2, FONT_SIZE, PAUSE_COLOR);
+        }
 
-        // DrawFPS(5, 5);
         EndDrawing();
     }
 
