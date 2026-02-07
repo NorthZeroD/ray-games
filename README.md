@@ -8,7 +8,21 @@ Just for fun.
 
 ## Tetris
 
-### CL ARGS
+### HOW TO BUILD
+
+`cd` to repo root first, then run
+
+```bash
+cmake -S . -B build && cmake --build build
+```
+
+You can also specify build type and C compiler with cmake flag `-DCMAKE_BUILD_TYPE` and `-DCMAKE_C_COMPILER`
+
+```bash
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=clang
+```
+
+### HOW TO START
 
 `./tetris` --- Default table size: 12 * 16
 
