@@ -41,7 +41,7 @@ int PLAYABLE_HEIGHT = 16;
 
 typedef uint64_t table_t;
 typedef uint16_t shape_t;
-typedef int8_t id_t;
+typedef int8_t shapeid_t;
 typedef int8_t offset_t;
 typedef int8_t pos_t;
 typedef uint32_t score_t;
@@ -60,7 +60,7 @@ const shape_t shapes[32] = {
 
 typedef struct {
     table_t* table;
-    id_t shapeId;
+    shapeid_t shapeId;
     pos_t shapeX, shapeY;
     score_t scoreCurrent, scoreHighest;
     float fallTime;
@@ -118,7 +118,7 @@ void DrawShape(const Game* game) {
 //    printf("-----------------------\n");
 }
 
-bool IsOverlap(const table_t* table, id_t shapeId, pos_t shapeX, pos_t shapeY) {
+bool IsOverlap(const table_t* table, shapeid_t shapeId, pos_t shapeX, pos_t shapeY) {
     table_t shape = (table_t)shapes[shapeId] << 48;
     for (int row = 0; row < SHAPE_FRAME_LENGTH; ++row) {
         table_t lineOfShapeFrame = ((shape << (row * SHAPE_FRAME_LENGTH)) & UINT64_HIGH_4_BIT) >> shapeX;
@@ -131,7 +131,7 @@ bool IsOverlap(const table_t* table, id_t shapeId, pos_t shapeX, pos_t shapeY) {
 
 bool CanMove(const Game* game, offset_t offsetX, offset_t offsetY, offset_t offsetRotate) {
     table_t* table = game->table;
-    id_t shapeId = offsetRotate ? ROTATE_SHAPE_ID(game->shapeId, offsetRotate) : game->shapeId;
+    shapeid_t shapeId = offsetRotate ? ROTATE_SHAPE_ID(game->shapeId, offsetRotate) : game->shapeId;
     pos_t shapeX = game->shapeX;
     pos_t shapeY = game->shapeY;
     pos_t targetX = shapeX + offsetX;
