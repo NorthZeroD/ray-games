@@ -216,8 +216,13 @@ void HandleInput(Game* game) {
     if (key == KEY_R) GameOver(game);
     if (key == KEY_P || key == KEY_ESCAPE) game->pause = !game->pause;
 
-    if (IsKeyDown(KEY_SPACE)) game->fallTime = 0.08f;
+    if (IsKeyDown(KEY_SEMICOLON) || IsKeyDown(KEY_LEFT_SHIFT) || IsKeyDown(KEY_RIGHT_SHIFT)) game->fallTime = 0.08f;
     else game->fallTime = DEFAULT_FALLTIME;
+
+    if ((IsKeyDown(KEY_LEFT_CONTROL) || IsKeyDown(KEY_RIGHT_CONTROL)) && IsKeyDown(KEY_Q)) {
+        CloseWindow();
+        exit(0);
+    }
 }
 
 int main(int argc, char* argv[])
@@ -238,7 +243,7 @@ int main(int argc, char* argv[])
 
     InitWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "Tetris");
     SetTargetFPS(FPS);
-    SetExitKey(KEY_Q);
+    SetExitKey(KEY_NULL);
 
     float timer = 0.f;
     uint64_t table[TABLE_HEIGHT];

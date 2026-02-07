@@ -22,5 +22,7 @@ Just for fun.
 | `L` `D` `RIGHT` | Move right |
 | `J` `S` `DOWN` | Rotate left (anticlockwise) |
 | `K` `W` `UP` | Rotate right (clockwise) |
-| `SPACE` | Soft drop |
+| `;` `LSHIFT` `RSHIFT` | Soft drop |
 | `P` `ESC` | Pause game |
+| `CTRL + Q` | Quit game |
+
