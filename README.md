@@ -24,5 +24,6 @@ Just for fun.
 | `K` `W` `UP` | Rotate right (clockwise) |
 | `;` `LSHIFT` `RSHIFT` | Soft drop |
 | `P` `ESC` | Pause game |
+| `R` | Restart game |
 | `CTRL + Q` | Quit game |
 
