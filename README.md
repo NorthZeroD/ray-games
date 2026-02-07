@@ -1,6 +1,6 @@
 # ray-games
 
-Some games made with raylib by me.
+Some games made with [raylib](https://github.com/raysan5/raylib) by me.
 
 Just for fun.
 
@@ -28,7 +28,7 @@ The `tetris` executable file is in the `build` dir
 
 `./tetris` --- Default table size: 12 * 16
 
-`./tetris [width:int[4,60]] [height:int[4,60]]` --- Custom table Size
+`./tetris [width:int[4,60]] [height:int[4,60]]` --- Custom table size
 
 ### HOW TO PLAY
 
