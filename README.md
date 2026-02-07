@@ -10,7 +10,7 @@ Just for fun.
 
 ### HOW TO BUILD
 
-`cd` to repo root first, then run
+`cd` to repo dir first, then run
 
 ```bash
 cmake -S . -B build && cmake --build build
@@ -21,6 +21,8 @@ You can also specify build type and C compiler with cmake flag `-DCMAKE_BUILD_TY
 ```bash
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=clang
 ```
+
+The `tetris` executable file is in the `build` dir
 
 ### HOW TO START
 
