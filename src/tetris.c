@@ -39,8 +39,15 @@ int PLAYABLE_HEIGHT = 16;
 
 #define ROTATE_SHAPE_ID(id, r) (((id) & ~3) | (((id) + (r) + 4) & 3))
 
+typedef uint64_t table_t;
+typedef uint16_t shape_t;
+typedef int8_t id_t;
+typedef int8_t offset_t;
+typedef int8_t pos_t;
+typedef uint32_t score_t;
+
 // NULL, I, O, T, S, Z, J, L
-const uint16_t shapes[32] = {
+const shape_t shapes[32] = {
     0, 0, 0, 0,
     0b0000111100000000, 0b0010001000100010, 0b0000000011110000, 0b0100010001000100,
     0b1100110000000000, 0b1100110000000000, 0b1100110000000000, 0b1100110000000000,
@@ -52,18 +59,20 @@ const uint16_t shapes[32] = {
 };
 
 typedef struct {
-    uint64_t* table;
-    int shapeId, shapeX, shapeY, scoreCurrent, scoreHighest;
+    table_t* table;
+    id_t shapeId;
+    pos_t shapeX, shapeY;
+    score_t scoreCurrent, scoreHighest;
     float fallTime;
     bool pause;
 } Game;
 
-void PrintTable(const uint64_t table[]) {
+void PrintTable(const table_t table[]) {
     for (int y = 0; y < TABLE_HEIGHT; ++y) {
         printf("[y = %2d]", y);
         for (int x = 0; x < 64; ++x) {
             if (!(x % 4)) putchar(' ');
-            uint64_t bit = table[y] & (UINT64_HIGH_1_BIT >> x);
+            table_t bit = table[y] & (UINT64_HIGH_1_BIT >> x);
             putchar(bit ? '#' : '.');
         }
         putchar('\n');
@@ -71,8 +80,8 @@ void PrintTable(const uint64_t table[]) {
     putchar('\n');
 }
 
-void InitTable(uint64_t table[]) {
-    memset(table, 0, sizeof(uint64_t) * TABLE_HEIGHT);
+void InitTable(table_t table[]) {
+    memset(table, 0, sizeof(table_t) * TABLE_HEIGHT);
     for (int y = 0; y < WALL_THICKNESS; ++y) {
         table[y] = UINT64_MAX;
         table[TABLE_HEIGHT - 1 - y] = UINT64_MAX;
@@ -83,10 +92,10 @@ void InitTable(uint64_t table[]) {
     PrintTable(table);
 }
 
-void DrawTable(const uint64_t table[]) {
+void DrawTable(const table_t table[]) {
     for (int y = 0; y < PLAYABLE_HEIGHT; ++y) {
         for (int x = 0; x < PLAYABLE_WIDTH; ++x) {
-            uint64_t bit = table[y + WALL_THICKNESS] & (UINT64_HIGH_1_BIT >> (x + WALL_THICKNESS));
+            table_t bit = table[y + WALL_THICKNESS] & (UINT64_HIGH_1_BIT >> (x + WALL_THICKNESS));
             Color color = bit ? WHITE : BLANK;
             DrawRectangle(x * BLOCK_LENGTH, y * BLOCK_LENGTH, BLOCK_LENGTH, BLOCK_LENGTH, color);
         }
@@ -94,13 +103,13 @@ void DrawTable(const uint64_t table[]) {
 }
 
 void DrawShape(const Game* game) {
-    uint16_t shape = shapes[game->shapeId];
-    int shapeX = game->shapeX;
-    int shapeY = game->shapeY;
+    shape_t shape = shapes[game->shapeId];
+    pos_t shapeX = game->shapeX;
+    pos_t shapeY = game->shapeY;
     for (int row = 0; row < SHAPE_FRAME_LENGTH; ++row) {
         for (int col = 0; col < SHAPE_FRAME_LENGTH; ++col) {
-            uint16_t lineOfShapeFrame = (shape << (row * SHAPE_FRAME_LENGTH)) & UINT16_HIGH_4_BIT;
-            uint16_t bit = lineOfShapeFrame & (UINT16_HIGH_1_BIT >> col);
+            shape_t lineOfShapeFrame = (shape << (row * SHAPE_FRAME_LENGTH)) & UINT16_HIGH_4_BIT;
+            shape_t bit = lineOfShapeFrame & (UINT16_HIGH_1_BIT >> col);
 //            printf("%d\n", bit);
             Color color = bit ? WHITE : BLANK;
             DrawRectangle((shapeX + col - WALL_THICKNESS) * BLOCK_LENGTH, (shapeY + row - WALL_THICKNESS) * BLOCK_LENGTH, BLOCK_LENGTH, BLOCK_LENGTH, color);
@@ -109,31 +118,31 @@ void DrawShape(const Game* game) {
 //    printf("-----------------------\n");
 }
 
-bool IsOverlap(const uint64_t* table, int shapeId, int shapeX, int shapeY) {
-    uint64_t shape = (uint64_t)shapes[shapeId] << 48;
+bool IsOverlap(const table_t* table, id_t shapeId, pos_t shapeX, pos_t shapeY) {
+    table_t shape = (table_t)shapes[shapeId] << 48;
     for (int row = 0; row < SHAPE_FRAME_LENGTH; ++row) {
-        uint64_t lineOfShapeFrame = ((shape << (row * SHAPE_FRAME_LENGTH)) & UINT64_HIGH_4_BIT) >> shapeX;
-        uint64_t lineOfTable = table[shapeY + row];
-        uint64_t isOverlap = lineOfShapeFrame & lineOfTable;
+        table_t lineOfShapeFrame = ((shape << (row * SHAPE_FRAME_LENGTH)) & UINT64_HIGH_4_BIT) >> shapeX;
+        table_t lineOfTable = table[shapeY + row];
+        table_t isOverlap = lineOfShapeFrame & lineOfTable;
         if (isOverlap) return true;
     }
     return false;
 }
 
-bool CanMove(const Game* game, int offsetX, int offsetY, int offsetRotate) {
-    uint64_t* table = game->table;
-    int shapeId = offsetRotate ? ROTATE_SHAPE_ID(game->shapeId, offsetRotate) : game->shapeId;
-    int shapeX = game->shapeX;
-    int shapeY = game->shapeY;
-    int targetX = shapeX + offsetX;
-    int targetY = shapeY + offsetY;
+bool CanMove(const Game* game, offset_t offsetX, offset_t offsetY, offset_t offsetRotate) {
+    table_t* table = game->table;
+    id_t shapeId = offsetRotate ? ROTATE_SHAPE_ID(game->shapeId, offsetRotate) : game->shapeId;
+    pos_t shapeX = game->shapeX;
+    pos_t shapeY = game->shapeY;
+    pos_t targetX = shapeX + offsetX;
+    pos_t targetY = shapeY + offsetY;
     if (targetX < 0 || targetX > TABLE_WIDTH) return false;
     if (targetY < 0 || targetY > TABLE_HEIGHT) return false;
     if (IsOverlap(table, shapeId, targetX, targetY)) return false;
     return true;
 }
 
-bool Update(Game* game, int offsetX, int offsetY, int offsetRotate) {
+bool Update(Game* game, offset_t offsetX, offset_t offsetY, offset_t offsetRotate) {
     if (CanMove(game, offsetX, offsetY, offsetRotate)) {
         game->shapeX += offsetX;
         game->shapeY += offsetY;
@@ -144,13 +153,13 @@ bool Update(Game* game, int offsetX, int offsetY, int offsetRotate) {
 }
 
 void CommitShape(Game* game) {
-    uint64_t shape = (uint64_t)shapes[game->shapeId] << 48;
-    uint64_t* table = game->table;
-    int shapeX = game->shapeX;
-    int shapeY = game->shapeY;
+    table_t shape = (table_t)shapes[game->shapeId] << 48;
+    table_t* table = game->table;
+    pos_t shapeX = game->shapeX;
+    pos_t shapeY = game->shapeY;
     for (int row = 0; row < SHAPE_FRAME_LENGTH; ++row) {
-        uint64_t lineOfShapeFrame = ((shape << (row * SHAPE_FRAME_LENGTH)) & UINT64_HIGH_4_BIT) >> shapeX;
-        uint64_t* lineOfTable = &table[shapeY + row];
+        table_t lineOfShapeFrame = ((shape << (row * SHAPE_FRAME_LENGTH)) & UINT64_HIGH_4_BIT) >> shapeX;
+        table_t* lineOfTable = &table[shapeY + row];
         *lineOfTable |= lineOfShapeFrame;
     }
 }
@@ -165,8 +174,8 @@ void NewShape(Game* game) {
 }
 
 void GameOver(Game* game) {
-    int scoreCurrent = game->scoreCurrent;
-    int scoreHighest = game->scoreHighest;
+    score_t scoreCurrent = game->scoreCurrent;
+    score_t scoreHighest = game->scoreHighest;
     game->scoreHighest = scoreCurrent > scoreHighest ? scoreCurrent : scoreHighest;
     game->scoreCurrent = 0;
     InitTable(game->table);
@@ -174,7 +183,7 @@ void GameOver(Game* game) {
 }
 
 void CheckLines(Game* game) {
-    uint64_t* table = game->table;
+    table_t* table = game->table;
     for (int y = TABLE_HEIGHT - WALL_THICKNESS - 1; y >= WALL_THICKNESS; --y) {
         if ((table[y] & FULL_LINE_MASK) == FULL_LINE_MASK) {
             game->scoreCurrent += 10;
@@ -246,7 +255,7 @@ int main(int argc, char* argv[])
     SetExitKey(KEY_NULL);
 
     float timer = 0.f;
-    uint64_t table[TABLE_HEIGHT];
+    table_t table[TABLE_HEIGHT];
     Game game = { .table = table };
     InitGame(&game);
 
