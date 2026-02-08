@@ -42,7 +42,6 @@ jobs:
       - name: Print Tools Verion
         run: |
           cmake --version
-          cl --version
 
       - name: Configure
         run: cmake -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=cl
