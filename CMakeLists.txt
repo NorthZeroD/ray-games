@@ -27,6 +27,20 @@ add_executable(${PROJECT_NAME}
     src/tetris.c
 )
 
+if(MSVC)
+    set(COMPILE_FLAGS /W4 /WX /permissive-)
+else()
+    set(COMPILE_FLAGS -Wall -Wextra -Werror -Wpedantic)
+endif()
+
+target_compile_options(${PROJECT_NAME} PRIVATE ${COMPILE_FLAGS})
+
+set_target_properties(${PROJECT_NAME} PROPERTIES
+    C_STANDARD 23
+    C_STANDARD_REQUIRED ON
+    C_EXTENSIONS OFF
+)
+
 #set(raylib_VERBOSE 1)
 target_link_libraries(${PROJECT_NAME} raylib)
 
