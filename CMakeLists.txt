@@ -1,6 +1,10 @@
 cmake_minimum_required(VERSION 3.11) # FetchContent is available in 3.11+
 project(tetris)
 
+set(CMAKE_C_STANDARD 23)
+set(CMAKE_C_STANDARD_REQUIRED ON)
+set(CMAKE_C_EXTENSIONS OFF)
+
 # Generate compile_commands.json
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
@@ -34,12 +38,6 @@ else()
 endif()
 
 target_compile_options(${PROJECT_NAME} PRIVATE ${COMPILE_FLAGS})
-
-set_target_properties(${PROJECT_NAME} PROPERTIES
-    C_STANDARD 23
-    C_STANDARD_REQUIRED ON
-    C_EXTENSIONS OFF
-)
 
 #set(raylib_VERBOSE 1)
 target_link_libraries(${PROJECT_NAME} raylib)
