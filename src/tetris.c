@@ -255,7 +255,11 @@ int main(int argc, char* argv[])
     SetExitKey(KEY_NULL);
 
     float timer = 0.f;
+#ifdef _WIN32
+    table_t table[64];
+#else
     table_t table[TABLE_HEIGHT];
+#endif
     Game game = { .table = table };
     InitGame(&game);
 
