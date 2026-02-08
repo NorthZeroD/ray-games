@@ -34,7 +34,7 @@ add_executable(${PROJECT_NAME}
 if(MSVC)
     set(COMPILE_FLAGS /std:clatest /W4 /WX /permissive-)
 else()
-    set(COMPILE_FLAGS -Wall -Wextra -Werror -Wpedantic -Wgnu-binary-literal)
+    set(COMPILE_FLAGS -Wall -Wextra -Werror -Wpedantic)
 endif()
 
 target_compile_options(${PROJECT_NAME} PRIVATE ${COMPILE_FLAGS})
