@@ -1,6 +1,10 @@
 cmake_minimum_required(VERSION 3.11) # FetchContent is available in 3.11+
 project(tetris)
 
+set(CMAKE_C_STANDARD 23)
+set(CMAKE_C_STANDARD_REQUIRED ON)
+set(CMAKE_C_EXTENSIONS OFF)
+
 # Generate compile_commands.json
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
@@ -30,7 +34,7 @@ add_executable(${PROJECT_NAME}
 if(MSVC)
     set(COMPILE_FLAGS /std:clatest /W4 /WX /permissive-)
 else()
-    set(COMPILE_FLAGS -std=c23 -Wall -Wextra -Werror -Wpedantic)
+    set(COMPILE_FLAGS -Wall -Wextra -Werror -Wpedantic -Wgnu-binary-literal)
 endif()
 
 target_compile_options(${PROJECT_NAME} PRIVATE ${COMPILE_FLAGS})
