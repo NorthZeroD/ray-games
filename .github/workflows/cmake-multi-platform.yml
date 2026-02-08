@@ -24,6 +24,11 @@ jobs:
             libX11-devel libXcursor-devel libXinerama-devel \
             libXrandr-devel libXi-devel mesa-libGL-devel mesa-libGLU-devel
 
+      - name: Print Tools Verion
+        run: |
+          cmake --version
+          ${{ matrix.compiler }} --version
+
       - name: Configure and Build
         run: |
           cmake -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=${{ matrix.compiler }}
@@ -34,13 +39,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup Latest CMake
-        uses: jwlawrence/actions-setup-cmake@v2
-        with:
-          cmake-version: 'latest'
+      - name: Print Tools Verion
+        run: |
+          cmake --version
+          cl --version
 
       - name: Configure
-        run: cmake -B build -DCMAKE_BUILD_TYPE=Release
+        run: cmake -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=cl
 
       - name: Build
-        run: cmake --build build --config Release
+        run: cmake --build build
