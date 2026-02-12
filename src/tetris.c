@@ -4,12 +4,14 @@
 #include <string.h>
 #include <stdlib.h>
 
-#define BLOCK_LENGTH 50
-
 int PLAYABLE_WIDTH = 12;
 int PLAYABLE_HEIGHT = 16;
 
-#define FONT_SIZE 40
+double SCALE = 1.;
+
+int BLOCK_LENGTH = 50;
+int FONT_SIZE = 40;
+
 #define SCORE_COLOR RAYWHITE
 #define PAUSE_COLOR ORANGE
 
@@ -20,7 +22,7 @@ int PLAYABLE_HEIGHT = 16;
 
 #define WINDOW_WIDTH (BLOCK_LENGTH * PLAYABLE_WIDTH)
 #define WINDOW_HEIGHT (BLOCK_LENGTH * PLAYABLE_HEIGHT)
-#define FPS 120
+#define FPS 60
 
 #define WALL_THICKNESS 2
 #define TABLE_WIDTH (PLAYABLE_WIDTH + WALL_THICKNESS * 2)
@@ -234,21 +236,38 @@ void HandleInput(Game* game) {
     }
 }
 
-int main(int argc, char* argv[])
-{
-    if (argc == 3) {
+#define ERRMSG "Invalid arguments.\nUseage: %s [width:int[4,60]] [height:int[4,60]] [scale:float(0.0,1.0]]\n"
+
+void HandleArgs(int argc, char* argv[]) {
+    if (argc == 1) return;
+    if (argc != 3 && argc != 4) goto fail;
+
+    if (argc >= 3) {
         int w = atoi(argv[1]);
         int h = atoi(argv[2]);
-        if (w < 4 || w > 60 || h < 4 || h > 60) {
-            printf("Invalid arguments.\nUseage: %s [width:int[4,60]] [height:int[4,60]]\n", argv[0]);
-            return 1;
-        }
+        if (w < 4 || w > 60 || h < 4 || h > 60) goto fail;
         PLAYABLE_WIDTH = w;
         PLAYABLE_HEIGHT = h;
-    } else if (argc != 1) {
-        printf("Invalid arguments.\nUseage: %s [width:int[4,60]] [height:int[4,60]]\n", argv[0]);
-        return 1;
     }
+
+    if (argc >= 4) {
+        double s = atof(argv[3]);
+        if (s <= 0.f || s > 1.f) goto fail;
+        SCALE = s;
+    }
+
+    BLOCK_LENGTH *= SCALE;
+    FONT_SIZE *= SCALE;
+    return;
+
+fail:
+    printf(ERRMSG, argv[0]);
+    exit(EXIT_FAILURE);
+}
+
+int main(int argc, char* argv[])
+{
+    HandleArgs(argc, argv);
 
     InitWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "Tetris");
     SetTargetFPS(FPS);
@@ -287,6 +306,6 @@ int main(int argc, char* argv[])
     }
 
     CloseWindow();
-    return 0;
+    return EXIT_SUCCESS;
 }
 
