@@ -217,6 +217,21 @@ void InitGame(Game* game) {
     InitTable(game->table);
 }
 
+int ReachableMaxY(Game* game) {
+    table_t* table = game->table;
+    shapeid_t shapeId = game->shapeId;
+    pos_t shapeX = game->shapeX;
+    for (int y = TABLE_HEIGHT - WALL_THICKNESS; y >= WALL_THICKNESS; --y) {
+        if (!IsOverlap(table, shapeId, shapeX, y)) return y;
+    }
+    return 0;
+}
+
+void HardDrop(Game* game) {
+    int y = ReachableMaxY(game);
+    if (y) game->shapeY = y;
+}
+
 void HandleInput(Game* game) {
     int key = GetKeyPressed();
     if (!game->pause) {
@@ -224,6 +239,7 @@ void HandleInput(Game* game) {
         if (key == KEY_L || key == KEY_D || key == KEY_RIGHT) Update(game, 1, 0, 0);
         if (key == KEY_J || key == KEY_S || key == KEY_DOWN) Update(game, 0, 0, -1);
         if (key == KEY_K || key == KEY_W || key == KEY_UP) Update(game, 0, 0, 1);
+        if (key == KEY_SPACE) HardDrop(game);
     }
     if (key == KEY_R) GameOver(game);
     if (key == KEY_P || key == KEY_ESCAPE) game->pause = !game->pause;
@@ -233,7 +249,7 @@ void HandleInput(Game* game) {
 
     if ((IsKeyDown(KEY_LEFT_CONTROL) || IsKeyDown(KEY_RIGHT_CONTROL)) && IsKeyDown(KEY_Q)) {
         CloseWindow();
-        exit(0);
+        exit(EXIT_SUCCESS);
     }
 }
 
