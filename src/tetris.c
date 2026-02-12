@@ -18,11 +18,12 @@ int FONT_SIZE = 40;
 #define CENTRE_X (TABLE_WIDTH / 2 - SHAPE_FRAME_LENGTH / 2)
 #define START_X CENTRE_X
 #define START_Y WALL_THICKNESS
-#define DEFAULT_FALLTIME 0.6f
 
 #define WINDOW_WIDTH (BLOCK_LENGTH * PLAYABLE_WIDTH)
 #define WINDOW_HEIGHT (BLOCK_LENGTH * PLAYABLE_HEIGHT)
 #define FPS 60
+
+#define DEFAULT_FRAMES_TO_FALL (FPS / 2)
 
 #define WALL_THICKNESS 2
 #define TABLE_WIDTH (PLAYABLE_WIDTH + WALL_THICKNESS * 2)
@@ -65,7 +66,7 @@ typedef struct {
     shapeid_t shapeId;
     pos_t shapeX, shapeY;
     score_t scoreCurrent, scoreHighest;
-    float fallTime;
+    int framesToFall;
     bool pause;
 } Game;
 
@@ -210,7 +211,7 @@ void InitGame(Game* game) {
     game->scoreHighest = 0;
     game->shapeX = START_X;
     game->shapeY = START_Y;
-    game->fallTime = DEFAULT_FALLTIME;
+    game->framesToFall = DEFAULT_FRAMES_TO_FALL;
     game->shapeId = GetRandomValue(0, 1000) % 28 + 4;
     game->pause = false;
     InitTable(game->table);
@@ -227,8 +228,8 @@ void HandleInput(Game* game) {
     if (key == KEY_R) GameOver(game);
     if (key == KEY_P || key == KEY_ESCAPE) game->pause = !game->pause;
 
-    if (IsKeyDown(KEY_SEMICOLON) || IsKeyDown(KEY_LEFT_SHIFT) || IsKeyDown(KEY_RIGHT_SHIFT)) game->fallTime = 0.08f;
-    else game->fallTime = DEFAULT_FALLTIME;
+    if (IsKeyDown(KEY_SEMICOLON) || IsKeyDown(KEY_LEFT_SHIFT) || IsKeyDown(KEY_RIGHT_SHIFT)) game->framesToFall = 1;
+    else game->framesToFall = DEFAULT_FRAMES_TO_FALL;
 
     if ((IsKeyDown(KEY_LEFT_CONTROL) || IsKeyDown(KEY_RIGHT_CONTROL)) && IsKeyDown(KEY_Q)) {
         CloseWindow();
@@ -273,7 +274,6 @@ int main(int argc, char* argv[])
     SetTargetFPS(FPS);
     SetExitKey(KEY_NULL);
 
-    float timer = 0.f;
 #ifdef _WIN32
     table_t table[64];
 #else
@@ -282,16 +282,17 @@ int main(int argc, char* argv[])
     Game game = { .table = table };
     InitGame(&game);
 
+    int counter = 0;
     while (!WindowShouldClose()) {
         HandleInput(&game);
 
         BeginDrawing();
         ClearBackground(BLACK);
 
-        timer += GetFrameTime(); 
-        if (timer >= game.fallTime) {
+        ++counter;
+        if (counter >= game.framesToFall) {
             NaturalFall(&game);
-            timer -= game.fallTime;
+            counter = 0;
         }
 
         DrawTable(table);
