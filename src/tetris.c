@@ -4,23 +4,26 @@
 #include <string.h>
 #include <stdlib.h>
 
-#define BLOCK_LENGTH 50
-
 int PLAYABLE_WIDTH = 12;
 int PLAYABLE_HEIGHT = 16;
 
-#define FONT_SIZE 40
+double SCALE = 1.;
+
+int BLOCK_LENGTH = 50;
+int FONT_SIZE = 40;
+
 #define SCORE_COLOR RAYWHITE
 #define PAUSE_COLOR ORANGE
 
 #define CENTRE_X (TABLE_WIDTH / 2 - SHAPE_FRAME_LENGTH / 2)
 #define START_X CENTRE_X
 #define START_Y WALL_THICKNESS
-#define DEFAULT_FALLTIME 0.6f
 
 #define WINDOW_WIDTH (BLOCK_LENGTH * PLAYABLE_WIDTH)
 #define WINDOW_HEIGHT (BLOCK_LENGTH * PLAYABLE_HEIGHT)
-#define FPS 120
+#define FPS 60
+
+#define DEFAULT_FRAMES_TO_FALL (FPS / 2)
 
 #define WALL_THICKNESS 2
 #define TABLE_WIDTH (PLAYABLE_WIDTH + WALL_THICKNESS * 2)
@@ -63,7 +66,7 @@ typedef struct {
     shapeid_t shapeId;
     pos_t shapeX, shapeY;
     score_t scoreCurrent, scoreHighest;
-    float fallTime;
+    int framesToFall;
     bool pause;
 } Game;
 
@@ -208,10 +211,40 @@ void InitGame(Game* game) {
     game->scoreHighest = 0;
     game->shapeX = START_X;
     game->shapeY = START_Y;
-    game->fallTime = DEFAULT_FALLTIME;
+    game->framesToFall = DEFAULT_FRAMES_TO_FALL;
     game->shapeId = GetRandomValue(0, 1000) % 28 + 4;
     game->pause = false;
     InitTable(game->table);
+}
+
+pos_t ReachableMaxY(Game* game) {
+    table_t* table = game->table;
+    shapeid_t shapeId = game->shapeId;
+    pos_t shapeX = game->shapeX;
+    pos_t shapeY = game->shapeY;
+    for (pos_t y = shapeY; y < TABLE_HEIGHT - WALL_THICKNESS; ++y) {
+        if (IsOverlap(table, shapeId, shapeX, y)) return y - 1;
+    }
+    return 0;
+}
+
+void HardDrop(Game* game) {
+    int y = ReachableMaxY(game);
+    if (y) game->shapeY = y;
+}
+
+void DrawGhostPiece(Game* game) {
+    shape_t shape = shapes[game->shapeId];
+    pos_t shapeX = game->shapeX;
+    pos_t shapeY = ReachableMaxY(game);
+    for (int row = 0; row < SHAPE_FRAME_LENGTH; ++row) {
+        for (int col = 0; col < SHAPE_FRAME_LENGTH; ++col) {
+            shape_t lineOfShapeFrame = (shape << (row * SHAPE_FRAME_LENGTH)) & UINT16_HIGH_4_BIT;
+            shape_t bit = lineOfShapeFrame & (UINT16_HIGH_1_BIT >> col);
+            Color color = bit ? RED : BLANK;
+            DrawRectangle((shapeX + col - WALL_THICKNESS) * BLOCK_LENGTH, (shapeY + row - WALL_THICKNESS) * BLOCK_LENGTH, BLOCK_LENGTH, BLOCK_LENGTH, color);
+        }
+    }
 }
 
 void HandleInput(Game* game) {
@@ -221,40 +254,57 @@ void HandleInput(Game* game) {
         if (key == KEY_L || key == KEY_D || key == KEY_RIGHT) Update(game, 1, 0, 0);
         if (key == KEY_J || key == KEY_S || key == KEY_DOWN) Update(game, 0, 0, -1);
         if (key == KEY_K || key == KEY_W || key == KEY_UP) Update(game, 0, 0, 1);
+        if (key == KEY_SPACE) HardDrop(game);
     }
     if (key == KEY_R) GameOver(game);
     if (key == KEY_P || key == KEY_ESCAPE) game->pause = !game->pause;
 
-    if (IsKeyDown(KEY_SEMICOLON) || IsKeyDown(KEY_LEFT_SHIFT) || IsKeyDown(KEY_RIGHT_SHIFT)) game->fallTime = 0.08f;
-    else game->fallTime = DEFAULT_FALLTIME;
+    if (IsKeyDown(KEY_SEMICOLON) || IsKeyDown(KEY_LEFT_SHIFT) || IsKeyDown(KEY_RIGHT_SHIFT)) game->framesToFall = 1;
+    else game->framesToFall = DEFAULT_FRAMES_TO_FALL;
 
     if ((IsKeyDown(KEY_LEFT_CONTROL) || IsKeyDown(KEY_RIGHT_CONTROL)) && IsKeyDown(KEY_Q)) {
         CloseWindow();
-        exit(0);
+        exit(EXIT_SUCCESS);
     }
+}
+
+#define ERRMSG "Invalid arguments.\nUseage: %s [width:int[4,60]] [height:int[4,60]] [scale:float(0.0,1.0]]\n"
+
+void HandleArgs(int argc, char* argv[]) {
+    if (argc == 1) return;
+    if (argc != 3 && argc != 4) goto fail;
+
+    if (argc >= 3) {
+        int w = atoi(argv[1]);
+        int h = atoi(argv[2]);
+        if (w < 4 || w > 60 || h < 4 || h > 60) goto fail;
+        PLAYABLE_WIDTH = w;
+        PLAYABLE_HEIGHT = h;
+    }
+
+    if (argc >= 4) {
+        double s = atof(argv[3]);
+        if (s <= 0.f || s > 1.f) goto fail;
+        SCALE = s;
+    }
+
+    BLOCK_LENGTH *= SCALE;
+    FONT_SIZE *= SCALE;
+    return;
+
+fail:
+    printf(ERRMSG, argv[0]);
+    exit(EXIT_FAILURE);
 }
 
 int main(int argc, char* argv[])
 {
-    if (argc == 3) {
-        int w = atoi(argv[1]);
-        int h = atoi(argv[2]);
-        if (w < 4 || w > 60 || h < 4 || h > 60) {
-            printf("Invalid arguments.\nUseage: %s [width:int[4,60]] [height:int[4,60]]\n", argv[0]);
-            return 1;
-        }
-        PLAYABLE_WIDTH = w;
-        PLAYABLE_HEIGHT = h;
-    } else if (argc != 1) {
-        printf("Invalid arguments.\nUseage: %s [width:int[4,60]] [height:int[4,60]]\n", argv[0]);
-        return 1;
-    }
+    HandleArgs(argc, argv);
 
     InitWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "Tetris");
     SetTargetFPS(FPS);
     SetExitKey(KEY_NULL);
 
-    float timer = 0.f;
 #ifdef _WIN32
     table_t table[64];
 #else
@@ -263,19 +313,21 @@ int main(int argc, char* argv[])
     Game game = { .table = table };
     InitGame(&game);
 
+    int counter = 0;
     while (!WindowShouldClose()) {
         HandleInput(&game);
 
         BeginDrawing();
         ClearBackground(BLACK);
 
-        timer += GetFrameTime(); 
-        if (timer >= game.fallTime) {
+        ++counter;
+        if (counter >= game.framesToFall) {
             NaturalFall(&game);
-            timer -= game.fallTime;
+            counter = 0;
         }
 
         DrawTable(table);
+        DrawGhostPiece(&game);
         DrawShape(&game);
         DrawText(TextFormat("%06d", game.scoreHighest), FONT_SIZE / 2, FONT_SIZE / 2, FONT_SIZE, SCORE_COLOR);
         DrawText(TextFormat("%06d", game.scoreCurrent), FONT_SIZE / 2, FONT_SIZE / 2 + FONT_SIZE, FONT_SIZE, SCORE_COLOR);
@@ -287,6 +339,6 @@ int main(int argc, char* argv[])
     }
 
     CloseWindow();
-    return 0;
+    return EXIT_SUCCESS;
 }
 
