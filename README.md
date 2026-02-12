@@ -30,6 +30,8 @@ The `tetris` executable file is in the `build` dir
 
 `./tetris [width:int[4,60]] [height:int[4,60]]` --- Custom table size
 
+`./tetris [width:int[4,60]] [height:int[4,60]] [scale:float(0.0,1.0]]` --- Custom table size and interface scale factor
+
 ### HOW TO PLAY
 
 | HOTKEY | DETAILS |
@@ -39,6 +41,7 @@ The `tetris` executable file is in the `build` dir
 | `J` `S` `DOWN` | Rotate left (anticlockwise) |
 | `K` `W` `UP` | Rotate right (clockwise) |
 | `;` `LSHIFT` `RSHIFT` | Soft drop |
+| `SPACE` | Hard drop |
 | `P` `ESC` | Pause game |
 | `R` | Restart game |
 | `CTRL + Q` | Quit game |
