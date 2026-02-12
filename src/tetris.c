@@ -217,12 +217,13 @@ void InitGame(Game* game) {
     InitTable(game->table);
 }
 
-int ReachableMaxY(Game* game) {
+pos_t ReachableMaxY(Game* game) {
     table_t* table = game->table;
     shapeid_t shapeId = game->shapeId;
     pos_t shapeX = game->shapeX;
-    for (int y = TABLE_HEIGHT - WALL_THICKNESS; y >= WALL_THICKNESS; --y) {
-        if (!IsOverlap(table, shapeId, shapeX, y)) return y;
+    pos_t shapeY = game->shapeY;
+    for (pos_t y = shapeY; y < TABLE_HEIGHT - WALL_THICKNESS; ++y) {
+        if (IsOverlap(table, shapeId, shapeX, y)) return y - 1;
     }
     return 0;
 }
@@ -230,6 +231,20 @@ int ReachableMaxY(Game* game) {
 void HardDrop(Game* game) {
     int y = ReachableMaxY(game);
     if (y) game->shapeY = y;
+}
+
+void DrawGhostPiece(Game* game) {
+    shape_t shape = shapes[game->shapeId];
+    pos_t shapeX = game->shapeX;
+    pos_t shapeY = ReachableMaxY(game);
+    for (int row = 0; row < SHAPE_FRAME_LENGTH; ++row) {
+        for (int col = 0; col < SHAPE_FRAME_LENGTH; ++col) {
+            shape_t lineOfShapeFrame = (shape << (row * SHAPE_FRAME_LENGTH)) & UINT16_HIGH_4_BIT;
+            shape_t bit = lineOfShapeFrame & (UINT16_HIGH_1_BIT >> col);
+            Color color = bit ? RED : BLANK;
+            DrawRectangle((shapeX + col - WALL_THICKNESS) * BLOCK_LENGTH, (shapeY + row - WALL_THICKNESS) * BLOCK_LENGTH, BLOCK_LENGTH, BLOCK_LENGTH, color);
+        }
+    }
 }
 
 void HandleInput(Game* game) {
@@ -312,6 +327,7 @@ int main(int argc, char* argv[])
         }
 
         DrawTable(table);
+        DrawGhostPiece(&game);
         DrawShape(&game);
         DrawText(TextFormat("%06d", game.scoreHighest), FONT_SIZE / 2, FONT_SIZE / 2, FONT_SIZE, SCORE_COLOR);
         DrawText(TextFormat("%06d", game.scoreCurrent), FONT_SIZE / 2, FONT_SIZE / 2 + FONT_SIZE, FONT_SIZE, SCORE_COLOR);
