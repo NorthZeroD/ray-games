@@ -40,8 +40,6 @@ int FONT_SIZE = 40;
 #define EMPTY_LINE_MASK ((UINT64_MAX >> (PLAYABLE_WIDTH + WALL_THICKNESS)) | (UINT64_MAX << (64 - WALL_THICKNESS)))
 #define FULL_LINE_MASK (~EMPTY_LINE_MASK)
 
-#define ROTATE_SHAPE_ID(id, r) (((id) & ~3) | (((id) + (r) + 4) & 3))
-
 typedef uint64_t table_t;
 typedef uint16_t shape_t;
 typedef int8_t shapeid_t;
@@ -50,6 +48,7 @@ typedef int8_t pos_t;
 typedef uint32_t score_t;
 
 // NULL, I, O, T, S, Z, J, L
+// To get shape, use `shapes[shapeId]`
 const shape_t shapes[32] = {
     0, 0, 0, 0,
     0b0000111100000000, 0b0010001000100010, 0b0000000011110000, 0b0100010001000100,
@@ -60,6 +59,29 @@ const shape_t shapes[32] = {
     0b1000111000000000, 0b0110010001000000, 0b0000111000100000, 0b0100010011000000,
     0b1110100000000000, 0b0110001000100000, 0b0000001011100000, 0b1000100011000000,
 };
+
+/* Get the Shape Id after Rotating
+ *
+ * shapeid_t id;
+ * offset_t   r;
+ *
+ * NOTE: r >= -4
+ *
+ * -----------------------------------------------------------------------------------------------
+ *
+ * id & ~3                        --- Clear lower 2 bits
+ *                                    NOTE: lower 2 bits is actually meaning rotation state
+ *
+ * id + r                         --- Get the shape id after 'rotating' (`+r`, plus the rotation offset)
+ *                                    NOTE: `id` is actually the index in array `shapes` (see above)
+ *
+ * id + r + 4                     --- `r` can be [-4, -1]
+ *
+ * (id + r + 4) & 3               --- Keep lower 2 bits only (equivalent to `%4`)
+ *
+ * (id & ~3) | ((id + r + 4) & 3) --- Recombine the id and rotation state
+*/
+#define ROTATE_SHAPE_ID(id, r) (((id) & ~3) | (((id) + (r) + 4) & 3))
 
 typedef struct {
     table_t* table;
