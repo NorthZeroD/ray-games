@@ -1,17 +1,12 @@
-cmake_minimum_required(VERSION 3.11) # FetchContent is available in 3.11+
-project(tetris)
+cmake_minimum_required(VERSION 3.31.11) # FetchContent is available in 3.11+
 
-if(WIN32)
-    set(CMAKE_C_STANDARD 17)
-else()
-    set(CMAKE_C_STANDARD 23)
-endif()
-
-set(CMAKE_C_STANDARD_REQUIRED ON)
-set(CMAKE_C_EXTENSIONS OFF)
-
-# Generate compile_commands.json
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
+# https://github.com/Kitware/CMake/blob/v3.31.11/Help/dev/experimental.rst#c-import-std-support
+set(CMAKE_EXPERIMENTAL_CXX_IMPORT_STD d0edc3af-4c50-42ea-a356-e2862fe7a444)
+set(CMAKE_CXX_MODULE_STD ON)
+
+project(RAY_GAMES LANGUAGES C CXX)
 
 # Dependencies
 set(RAYLIB_VERSION 5.5)
@@ -30,32 +25,5 @@ if (NOT raylib_FOUND) # If there's none, fetch and build raylib
   endif()
 endif()
 
-# Our Project
+add_subdirectory(src)
 
-add_executable(${PROJECT_NAME}
-    src/tetris.c
-)
-
-if(MSVC)
-    set(COMPILE_FLAGS /std:clatest /W4 /permissive-)
-else()
-    set(COMPILE_FLAGS -Wall -Wextra -Wpedantic)
-endif()
-
-target_compile_options(${PROJECT_NAME} PRIVATE ${COMPILE_FLAGS})
-
-#set(raylib_VERBOSE 1)
-target_link_libraries(${PROJECT_NAME} raylib)
-
-# Web Configurations
-if (${PLATFORM} STREQUAL "Web")
-    set_target_properties(${PROJECT_NAME} PROPERTIES SUFFIX ".html") # Tell Emscripten to build an example.html file.
-    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -s USE_GLFW=3 -s ASSERTIONS=1 -s WASM=1 -s ASYNCIFY -s GL_ENABLE_GET_PROC_ADDRESS=1")
-endif()
-
-# Checks if OSX and links appropriate frameworks (Only required on MacOS)
-if (APPLE)
-    target_link_libraries(${PROJECT_NAME} "-framework IOKit")
-    target_link_libraries(${PROJECT_NAME} "-framework Cocoa")
-    target_link_libraries(${PROJECT_NAME} "-framework OpenGL")
-endif()
