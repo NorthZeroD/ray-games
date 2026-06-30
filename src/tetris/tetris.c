@@ -1,8 +1,9 @@
-#include "raylib.h"
 #include <stdint.h>
 #include <stdio.h>
-#include <string.h>
 #include <stdlib.h>
+#include <string.h>
+
+#include "raylib.h"
 
 int PLAYABLE_WIDTH = 12;
 int PLAYABLE_HEIGHT = 16;
@@ -49,6 +50,7 @@ typedef uint32_t score_t;
 
 // NULL, I, O, T, S, Z, J, L
 // To get shape, use `shapes[shapeId]`
+// clang-format off
 const shape_t shapes[32] = {
     0, 0, 0, 0,
     0b0000111100000000, 0b0010001000100010, 0b0000000011110000, 0b0100010001000100,
@@ -59,6 +61,7 @@ const shape_t shapes[32] = {
     0b1000111000000000, 0b0110010001000000, 0b0000111000100000, 0b0100010011000000,
     0b1110100000000000, 0b0110001000100000, 0b0000001011100000, 0b1000100011000000,
 };
+// clang-format on
 
 /* Get the Shape Id after Rotating
  *
@@ -80,11 +83,11 @@ const shape_t shapes[32] = {
  * (id + r + 4) & 3               --- Keep lower 2 bits only (equivalent to `%4`)
  *
  * (id & ~3) | ((id + r + 4) & 3) --- Recombine the id and rotation state
-*/
+ */
 #define ROTATE_SHAPE_ID(id, r) (((id) & ~3) | (((id) + (r) + 4) & 3))
 
 typedef struct {
-    table_t* table;
+    table_t *table;
     shapeid_t shapeId;
     pos_t shapeX, shapeY;
     score_t scoreCurrent, scoreHighest;
@@ -127,7 +130,7 @@ void DrawTable(const table_t table[]) {
     }
 }
 
-void DrawShape(const Game* game) {
+void DrawShape(const Game *game) {
     shape_t shape = shapes[game->shapeId];
     pos_t shapeX = game->shapeX;
     pos_t shapeY = game->shapeY;
@@ -135,15 +138,16 @@ void DrawShape(const Game* game) {
         for (int col = 0; col < SHAPE_FRAME_LENGTH; ++col) {
             shape_t lineOfShapeFrame = (shape << (row * SHAPE_FRAME_LENGTH)) & UINT16_HIGH_4_BIT;
             shape_t bit = lineOfShapeFrame & (UINT16_HIGH_1_BIT >> col);
-//            printf("%d\n", bit);
+            //            printf("%d\n", bit);
             Color color = bit ? WHITE : BLANK;
-            DrawRectangle((shapeX + col - WALL_THICKNESS) * BLOCK_LENGTH, (shapeY + row - WALL_THICKNESS) * BLOCK_LENGTH, BLOCK_LENGTH, BLOCK_LENGTH, color);
+            DrawRectangle((shapeX + col - WALL_THICKNESS) * BLOCK_LENGTH,
+                          (shapeY + row - WALL_THICKNESS) * BLOCK_LENGTH, BLOCK_LENGTH, BLOCK_LENGTH, color);
         }
     }
-//    printf("-----------------------\n");
+    //    printf("-----------------------\n");
 }
 
-bool IsOverlap(const table_t* table, shapeid_t shapeId, pos_t shapeX, pos_t shapeY) {
+bool IsOverlap(const table_t *table, shapeid_t shapeId, pos_t shapeX, pos_t shapeY) {
     table_t shape = (table_t)shapes[shapeId] << 48;
     for (int row = 0; row < SHAPE_FRAME_LENGTH; ++row) {
         table_t lineOfShapeFrame = ((shape << (row * SHAPE_FRAME_LENGTH)) & UINT64_HIGH_4_BIT) >> shapeX;
@@ -154,8 +158,8 @@ bool IsOverlap(const table_t* table, shapeid_t shapeId, pos_t shapeX, pos_t shap
     return false;
 }
 
-bool CanMove(const Game* game, offset_t offsetX, offset_t offsetY, offset_t offsetRotate) {
-    table_t* table = game->table;
+bool CanMove(const Game *game, offset_t offsetX, offset_t offsetY, offset_t offsetRotate) {
+    table_t *table = game->table;
     shapeid_t shapeId = offsetRotate ? ROTATE_SHAPE_ID(game->shapeId, offsetRotate) : game->shapeId;
     pos_t shapeX = game->shapeX;
     pos_t shapeY = game->shapeY;
@@ -167,7 +171,7 @@ bool CanMove(const Game* game, offset_t offsetX, offset_t offsetY, offset_t offs
     return true;
 }
 
-bool Update(Game* game, offset_t offsetX, offset_t offsetY, offset_t offsetRotate) {
+bool Update(Game *game, offset_t offsetX, offset_t offsetY, offset_t offsetRotate) {
     if (CanMove(game, offsetX, offsetY, offsetRotate)) {
         game->shapeX += offsetX;
         game->shapeY += offsetY;
@@ -177,28 +181,28 @@ bool Update(Game* game, offset_t offsetX, offset_t offsetY, offset_t offsetRotat
     return false;
 }
 
-void CommitShape(Game* game) {
+void CommitShape(Game *game) {
     table_t shape = (table_t)shapes[game->shapeId] << 48;
-    table_t* table = game->table;
+    table_t *table = game->table;
     pos_t shapeX = game->shapeX;
     pos_t shapeY = game->shapeY;
     for (int row = 0; row < SHAPE_FRAME_LENGTH; ++row) {
         table_t lineOfShapeFrame = ((shape << (row * SHAPE_FRAME_LENGTH)) & UINT64_HIGH_4_BIT) >> shapeX;
-        table_t* lineOfTable = &table[shapeY + row];
+        table_t *lineOfTable = &table[shapeY + row];
         *lineOfTable |= lineOfShapeFrame;
     }
 }
 
-void GameOver(Game* game);
+void GameOver(Game *game);
 
-void NewShape(Game* game) {
+void NewShape(Game *game) {
     game->shapeId = GetRandomValue(0, 1000) % 28 + 4;
     game->shapeX = START_X;
     game->shapeY = START_Y;
     if (IsOverlap(game->table, game->shapeId, game->shapeX, game->shapeY)) GameOver(game);
 }
 
-void GameOver(Game* game) {
+void GameOver(Game *game) {
     score_t scoreCurrent = game->scoreCurrent;
     score_t scoreHighest = game->scoreHighest;
     game->scoreHighest = scoreCurrent > scoreHighest ? scoreCurrent : scoreHighest;
@@ -207,8 +211,8 @@ void GameOver(Game* game) {
     NewShape(game);
 }
 
-void CheckLines(Game* game) {
-    table_t* table = game->table;
+void CheckLines(Game *game) {
+    table_t *table = game->table;
     for (int y = TABLE_HEIGHT - WALL_THICKNESS - 1; y >= WALL_THICKNESS; --y) {
         if ((table[y] & FULL_LINE_MASK) == FULL_LINE_MASK) {
             game->scoreCurrent += 10;
@@ -220,7 +224,7 @@ void CheckLines(Game* game) {
     }
 }
 
-void NaturalFall(Game* game) {
+void NaturalFall(Game *game) {
     if (!game->pause && !Update(game, 0, 1, 0)) {
         CommitShape(game);
         CheckLines(game);
@@ -228,7 +232,7 @@ void NaturalFall(Game* game) {
     }
 }
 
-void InitGame(Game* game) {
+void InitGame(Game *game) {
     game->scoreCurrent = 0;
     game->scoreHighest = 0;
     game->shapeX = START_X;
@@ -239,8 +243,8 @@ void InitGame(Game* game) {
     InitTable(game->table);
 }
 
-pos_t ReachableMaxY(Game* game) {
-    table_t* table = game->table;
+pos_t ReachableMaxY(Game *game) {
+    table_t *table = game->table;
     shapeid_t shapeId = game->shapeId;
     pos_t shapeX = game->shapeX;
     pos_t shapeY = game->shapeY;
@@ -250,12 +254,12 @@ pos_t ReachableMaxY(Game* game) {
     return 0;
 }
 
-void HardDrop(Game* game) {
+void HardDrop(Game *game) {
     int y = ReachableMaxY(game);
     if (y) game->shapeY = y;
 }
 
-void DrawGhostPiece(Game* game) {
+void DrawGhostPiece(Game *game) {
     shape_t shape = shapes[game->shapeId];
     pos_t shapeX = game->shapeX;
     pos_t shapeY = ReachableMaxY(game);
@@ -264,12 +268,13 @@ void DrawGhostPiece(Game* game) {
             shape_t lineOfShapeFrame = (shape << (row * SHAPE_FRAME_LENGTH)) & UINT16_HIGH_4_BIT;
             shape_t bit = lineOfShapeFrame & (UINT16_HIGH_1_BIT >> col);
             Color color = bit ? RED : BLANK;
-            DrawRectangle((shapeX + col - WALL_THICKNESS) * BLOCK_LENGTH, (shapeY + row - WALL_THICKNESS) * BLOCK_LENGTH, BLOCK_LENGTH, BLOCK_LENGTH, color);
+            DrawRectangle((shapeX + col - WALL_THICKNESS) * BLOCK_LENGTH,
+                          (shapeY + row - WALL_THICKNESS) * BLOCK_LENGTH, BLOCK_LENGTH, BLOCK_LENGTH, color);
         }
     }
 }
 
-void HandleInput(Game* game) {
+void HandleInput(Game *game) {
     int key = GetKeyPressed();
     if (!game->pause) {
         if (key == KEY_H || key == KEY_A || key == KEY_LEFT) Update(game, -1, 0, 0);
@@ -292,7 +297,7 @@ void HandleInput(Game* game) {
 
 #define ERRMSG "Invalid arguments.\nUseage: %s [width:int[4,60]] [height:int[4,60]] [scale:float(0.0,1.0]]\n"
 
-void HandleArgs(int argc, char* argv[]) {
+void HandleArgs(int argc, char *argv[]) {
     if (argc == 1) return;
     if (argc != 3 && argc != 4) goto fail;
 
@@ -319,8 +324,7 @@ fail:
     exit(EXIT_FAILURE);
 }
 
-int main(int argc, char* argv[])
-{
+int main(int argc, char *argv[]) {
     HandleArgs(argc, argv);
 
     InitWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "Tetris");
@@ -332,7 +336,7 @@ int main(int argc, char* argv[])
 #else
     table_t table[TABLE_HEIGHT];
 #endif
-    Game game = { .table = table };
+    Game game = {.table = table};
     InitGame(&game);
 
     int counter = 0;
@@ -352,7 +356,8 @@ int main(int argc, char* argv[])
         DrawGhostPiece(&game);
         DrawShape(&game);
         DrawText(TextFormat("%06d", game.scoreHighest), FONT_SIZE / 2, FONT_SIZE / 2, FONT_SIZE, SCORE_COLOR);
-        DrawText(TextFormat("%06d", game.scoreCurrent), FONT_SIZE / 2, FONT_SIZE / 2 + FONT_SIZE, FONT_SIZE, SCORE_COLOR);
+        DrawText(TextFormat("%06d", game.scoreCurrent), FONT_SIZE / 2, FONT_SIZE / 2 + FONT_SIZE, FONT_SIZE,
+                 SCORE_COLOR);
         if (game.pause) {
             DrawText("PAUSE", WINDOW_WIDTH - FONT_SIZE * 4, FONT_SIZE / 2, FONT_SIZE, PAUSE_COLOR);
         }
@@ -363,4 +368,3 @@ int main(int argc, char* argv[])
     CloseWindow();
     return EXIT_SUCCESS;
 }
-
