@@ -4,21 +4,6 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 project(RAY_GAMES LANGUAGES C)
 
-set(CMAKE_C_STANDARD 23)
-set(CMAKE_C_STANDARD_REQUIRED ON)
-set(CMAKE_C_EXTENSIONS OFF)
-
-if (CMAKE_C_COMPILER_ID STREQUAL MSVC)
-    add_compile_options(
-        /W4
-    )
-else()
-    add_compile_options(
-        -Wall
-        -Wextra
-    )
-endif()
-
 # Dependencies
 set(RAYLIB_VERSION 5.5)
 find_package(raylib ${RAYLIB_VERSION} QUIET) # QUIET or REQUIRED
